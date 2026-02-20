@@ -6,64 +6,62 @@
 # yarn install --immutable
 # yarn tsc
 # yarn build:backend
-#
-# Once the commands have been run, you can build the image using `yarn build-image`
-#
-# Alternatively, there is also a multi-stage Dockerfile documented here:
-# https://backstage.io/docs/deployment/docker#multi-stage-build
 
-FROM node:24-trixie-slim
+FROM node:22-bookworm-slim
 
-# Set Python interpreter for `node-gyp` to use
 ENV PYTHON=/usr/bin/python3
 
-# Install isolate-vm dependencies, these are needed by the @backstage/plugin-scaffolder-backend.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
-    apt-get install -y --no-install-recommends python3 g++ build-essential && \
+    apt-get install -y --no-install-recommends python3 g++ build-essential curl && \
     rm -rf /var/lib/apt/lists/*
 
-# Install sqlite3 dependencies. You can skip this if you don't use sqlite3 in the image,
-# in which case you should also move better-sqlite3 to "devDependencies" in package.json.
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt,sharing=locked \
     apt-get update && \
     apt-get install -y --no-install-recommends libsqlite3-dev && \
     rm -rf /var/lib/apt/lists/*
 
-# From here on we use the least-privileged `node` user to run the backend.
+# Inject corporate CA certificate
+COPY certs/corporate-ca.pem /tmp/corporate-ca.pem
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && cp /tmp/corporate-ca.pem /usr/local/share/ca-certificates/corporate-ca.crt \
+    && update-ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pre-download Node.js headers so node-gyp doesn't need to reach the internet during yarn install
+RUN NODE_VERSION=$(node --version | sed 's/v//') && \
+    mkdir -p /tmp/.node-gyp/${NODE_VERSION} && \
+    curl -k https://nodejs.org/download/release/v${NODE_VERSION}/node-v${NODE_VERSION}-headers.tar.gz \
+    | tar xz -C /tmp/.node-gyp/${NODE_VERSION} --strip-components=1 && \
+    echo "9" > /tmp/.node-gyp/${NODE_VERSION}/installVersion && \
+    chmod -R 777 /tmp/.node-gyp
+
 USER node
 
-# This should create the app dir as `node`.
-# If it is instead created as `root` then the `tar` command below will fail: `can't create directory 'packages/': Permission denied`.
-# If this occurs, then ensure BuildKit is enabled (`DOCKER_BUILDKIT=1`) so the app dir is correctly created as `node`.
 WORKDIR /app
 
-# Copy files needed by Yarn
 COPY --chown=node:node .yarn ./.yarn
 COPY --chown=node:node .yarnrc.yml ./
 COPY --chown=node:node backstage.json ./
 
-# This switches many Node.js dependencies to production mode.
 ENV NODE_ENV=production
-
-# This disables node snapshot for Node 20 to work with the Scaffolder
 ENV NODE_OPTIONS="--no-node-snapshot"
+ENV NODE_EXTRA_CA_CERTS=/etc/ssl/certs/ca-certificates.crt
+ENV NODE_TLS_REJECT_UNAUTHORIZED=0
+ENV npm_config_nodedir=/tmp/.node-gyp/20.18.3
 
-# Copy repo skeleton first, to avoid unnecessary docker cache invalidation.
-# The skeleton contains the package.json of each package in the monorepo,
-# and along with yarn.lock and the root package.json, that's enough to run yarn install.
 COPY --chown=node:node yarn.lock package.json packages/backend/dist/skeleton.tar.gz ./
 RUN tar xzf skeleton.tar.gz && rm skeleton.tar.gz
 
 RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid=1000 \
     yarn workspaces focus --all --production && rm -rf "$(yarn cache clean)"
 
-# This will include the examples, if you don't need these simply remove this line
+ENV NODE_TLS_REJECT_UNAUTHORIZED=
+
 COPY --chown=node:node examples ./examples
 
-# Then copy the rest of the backend bundle, along with any other files we might want.
 COPY --chown=node:node packages/backend/dist/bundle.tar.gz app-config*.yaml ./
 RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
