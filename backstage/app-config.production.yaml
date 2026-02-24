@@ -32,6 +32,7 @@ backend:
 auth:
   providers:
     guest: {}
+      dangerouslyAllowOutsideDevelopment: true
 
 catalog:
   # Overrides the default list locations from app-config.yaml as these contain example data.
