@@ -1,0 +1,13 @@
+apiVersion: storage.aceplatform.org/v1alpha1
+kind: XStorageAccount
+metadata:
+  name: ${{ values.storageAccountName }}
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parameters:
+    storageAccountName: ${{ values.storageAccountName }}
+    resourceGroupName: ${{ values.resourceGroupName }}
+    location: ${{ values.location }}
+    sku: ${{ values.sku }}
