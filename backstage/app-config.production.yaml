@@ -29,9 +29,21 @@ backend:
       #   ca: # if you have a CA file and want to verify it you can uncomment this section
       #     $file: <file-path>/ca/server.crt
 
+integrations:
+  github:
+    - host: github.com
+      token: ${GITHUB_TOKEN}
+
+scaffolder:
+  defaultAuthor:
+    name: Backstage
+    email: backstage@aceplatform.org
+  defaultCommitMessage: "feat: provision infrastructure via Backstage"
+
+
 auth:
   providers:
-    guest: {}
+    guest:
       dangerouslyAllowOutsideDevelopment: true
 
 catalog:
@@ -47,6 +59,12 @@ catalog:
     # Local example template
     - type: file
       target: ./examples/template/template.yaml
+      rules:
+        - allow: [Template]
+
+    #Azure SA template
+    - type: file
+      target: ./examples/template/azure/storage-account/xr-sa-template.yaml
       rules:
         - allow: [Template]
 
