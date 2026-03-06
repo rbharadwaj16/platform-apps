@@ -62,6 +62,12 @@ catalog:
       rules:
         - allow: [Template]
 
+    #Azure SA template
+    - type: file
+      target: ./examples/template/azure/storage-account/xr-sa-template.yaml
+      rules:
+        - allow: [Template]
+
     # Local example organizational data
     - type: file
       target: ./examples/org.yaml
