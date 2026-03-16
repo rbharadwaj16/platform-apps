@@ -2,6 +2,9 @@ from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
 
+ALLOWED_REGIONS = ["westeurope", "northeurope", "uksouth"]
+ALLOWED_RESOURCE_TYPES = ["storage_account"]
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -30,3 +33,16 @@ def translate(request_body: dict):
         "user_request": user_request,
         "extracted_data": extracted_data
     }
+
+def validate_extracted_data(extracted_data):
+    errors = []
+
+    required_fields = ["resource_type", "region", "resource_group", "resource_name"]
+
+    for field_name in required_fields:
+        if field_name not in extracted_data or not extracted_data(field_name):
+            errors.append(f"Missing {field_name}")
+
+    if len(errors) > 0:
+        return errors
+    
