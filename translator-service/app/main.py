@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
 
@@ -8,4 +8,11 @@ def health():
 
 @app.post("/translate")
 def translate(request_body: dict):
-    return {"message_received": request_body}
+    if "request" not in request_body:
+        raise HTTPException (status_code=400, detail="Missing 'request' field")
+    
+    user_request = request_body["request"]
+
+    return {
+        "user_request": user_request
+    }
