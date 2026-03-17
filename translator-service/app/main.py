@@ -46,3 +46,16 @@ def validate_extracted_data(extracted_data):
     if len(errors) > 0:
         return errors
     
+    extracted_data["region"] = extracted_data["region"].lower().replace(" ", "")
+
+    if extracted_data["resource_type"] not in ALLOWED_RESOURCE_TYPES:
+        errors.append("Unsupported resource type")
+
+    if extracted_data["region"] not in ALLOWED_REGIONS:
+        errors.append("Unsupported region")
+
+    if not extracted_data["resource_group"].startswith("rg-"):
+        errors.append("resource group must start with rg-")
+
+    return errors
+    
