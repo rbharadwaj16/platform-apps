@@ -29,9 +29,12 @@ def translate(request_body: dict):
 
     extracted_data = extract_intent_from_ai(user_request)
 
+    errors = validate_extracted_data(extracted_data)
+
     return {
         "user_request": user_request,
-        "extracted_data": extracted_data
+        "extracted_data": extracted_data,
+        "errors": errors
     }
 
 def validate_extracted_data(extracted_data):
