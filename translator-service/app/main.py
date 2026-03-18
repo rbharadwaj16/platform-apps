@@ -2,7 +2,7 @@ from fastapi import FastAPI, HTTPException
 
 app = FastAPI()
 
-ALLOWED_REGIONS = ["westeurope", "northeurope", "uksouth"]
+ALLOWED_REGIONS = ["westeurope", "northeurope", "uksouth", "eastus"]
 ALLOWED_RESOURCE_TYPES = ["storage_account"]
 
 @app.get("/health")
@@ -13,7 +13,7 @@ def extract_intent_from_ai(user_request):
     return {
         "resource_type": "storage_account",
         "region": "westeurope",
-        "resource_group": "rg-app-prod",
+        "resource_group": "app-prod",
         "resource_name": "stappfiles001",
         "sku": "Standard_LRS",
         "environment": "prod"
@@ -31,10 +31,16 @@ def translate(request_body: dict):
 
     errors = validate_extracted_data(extracted_data)
 
+    yaml_output = None
+
+    if len(errors) == 0:
+        yaml_output = generate_yaml(extracted_data)
+
     return {
         "user_request": user_request,
         "extracted_data": extracted_data,
-        "errors": errors
+        "errors": errors,
+        "yaml": yaml_output
     }
 
 def validate_extracted_data(extracted_data):
@@ -61,4 +67,22 @@ def validate_extracted_data(extracted_data):
         errors.append("resource group must start with rg-")
 
     return errors
+    
+
+def generate_yaml(extracted_data):
+    yaml_text = f"""apiVersion: storage.aceplatform.org/v1alpha1
+kind: XStorageAccount
+metadata:
+  name: {extracted_data["resource_name"]}
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parameters:
+    storageAccountName: {extracted_data["resource_name"]}
+    resourceGroupName: {extracted_data["resource_group"]}
+    location: {extracted_data["region"]}
+    sku: {extracted_data["sku"]}
+"""
+    return yaml_text
     
