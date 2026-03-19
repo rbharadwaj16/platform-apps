@@ -1,4 +1,7 @@
+import os
+
 from fastapi import FastAPI, HTTPException
+from openai import OpenAI
 
 app = FastAPI()
 
@@ -11,16 +14,16 @@ def health():
     return {"status": "ok"}
 
 
-def extract_intent_from_ai(user_request):
-    return {
-        "resource_type": "storage_account",
-        "parameters": {
-            "storageAccountName": "stappfiles001",
-            "resourceGroupName": "myapp-rg",
-            "location": "eastus",
-            "sku": "Standard_LRS"
-        }
-    }
+# def extract_intent_from_ai(user_request):
+#     return {
+#         "resource_type": "storage_account",
+#         "parameters": {
+#             "storageAccountName": "stappfiles001",
+#             "resourceGroupName": "myapp-rg",
+#             "location": "eastus",
+#             "sku": "Standard_LRS"
+#         }
+#     }
 
 
 def validate_extracted_data(extracted_data):
@@ -96,3 +99,18 @@ def translate(request_body: dict):
         "errors": errors,
         "translation": translation_response
     }
+
+
+def extract_intent_from_ai(user_request):
+
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url="https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1/",
+)
+
+response = client.responses.create(   
+  model="gpt-4.1-nano", # Replace with your model deployment name 
+  input="This is a test.",
+)
+
+print(response.model_dump_json(indent=2))
