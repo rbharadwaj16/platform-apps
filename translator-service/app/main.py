@@ -1,5 +1,5 @@
 import os
-
+import json
 from fastapi import FastAPI, HTTPException
 from openai import OpenAI
 
@@ -100,17 +100,41 @@ def translate(request_body: dict):
         "translation": translation_response
     }
 
-
 def extract_intent_from_ai(user_request):
+    prompt_text = """
+You are an infrastructure request parser.
 
-client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url="https://YOUR-RESOURCE-NAME.openai.azure.com/openai/v1/",
-)
+Return JSON only.
 
-response = client.responses.create(   
-  model="gpt-4.1-nano", # Replace with your model deployment name 
-  input="This is a test.",
-)
+Extract the user's request into this exact JSON structure:
+{
+  "resource_type": "storage_account",
+  "parameters": {
+    "storageAccountName": "string or null",
+    "resourceGroupName": "string or null",
+    "location": "string or null",
+    "sku": "string or null"
+  }
+}
 
-print(response.model_dump_json(indent=2))
+Rules:
+- Return JSON only
+- Do not return markdown
+- Do not return explanation text
+- If a value is missing, use null
+- If the request is for a storage account, set resource_type to "storage_account"
+- Map common phrasing where possible, but do not invent values
+"""
+
+    response = client.responses.create(
+        model=AZURE_OPENAI_MODEL,
+        input=[
+            {"role": "developer", "content": prompt_text},
+            {"role": "user", "content": user_request}
+        ]
+    )
+
+    ai_text = response.output_text
+    extracted_data = json.loads(ai_text)
+
+    return extracted_data
