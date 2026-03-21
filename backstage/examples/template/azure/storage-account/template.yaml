@@ -41,26 +41,13 @@ spec:
           location: ${{ steps.translatorRun.output.parameters.location }}
           sku: ${{ steps.translatorRun.output.parameters.sku }}
 
-    - id: publish
-      name: Raise PR to Platform Repo
-      action: publish:github:pull-request
+    - id: showResult
+      name: Show generated values
+      action: debug:log
       input:
-        repoUrl: github.com?repo=platform-infra&owner=rbharadwaj16
-        title: "feat: provision storage account ${{ steps.translatorRun.output.parameters.storageAccountName }}"
-        branchName: "storage-${{ steps.translatorRun.output.parameters.storageAccountName }}"
-        description: |
-          ## New Azure Storage Account Request
-
-          | Field | Value |
-          |-------|-------|
-          | Name | ${{ steps.translatorRun.output.parameters.storageAccountName }} |
-          | Resource Group | ${{ steps.translatorRun.output.parameters.resourceGroupName }} |
-          | Location | ${{ steps.translatorRun.output.parameters.location }} |
-          | SKU | ${{ steps.translatorRun.output.parameters.sku }} |
-        targetPath: platform-core/crossplane/xrs/dev/${{ steps.translatorRun.output.parameters.storageAccountName }}
+        message: |
+          Translator output:
+          ${{ steps.translatorRun.output | dump }}
 
   output:
-    links:
-      - title: Pull Request
-        url: ${{ steps.publish.output.remoteUrl }}
-        icon: github
+    links: []
