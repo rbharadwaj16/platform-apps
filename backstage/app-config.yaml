@@ -49,7 +49,12 @@ catalog:
         - allow: [Template]
 
     - type: file
-      target: ../../examples/template/azure/storage-account/template.yaml
+      target: ../../examples/template/azure/storage-account/storage-account-standard-template.yaml
+      rules:
+        - allow: [Template]
+
+    - type: file
+      target: ../../examples/template/azure/storage-account/storage-account-ai-template.yaml
       rules:
         - allow: [Template]
 

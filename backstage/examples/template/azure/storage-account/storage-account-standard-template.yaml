@@ -1,0 +1,99 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: azure-storage-account-standard
+  title: Azure Storage Account Standard
+  description: Provision an Azure Storage Account via Crossplane using a standard form
+  tags:
+    - azure
+    - storage
+    - crossplane
+    - standard
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: Storage Account Details
+      required:
+        - storageAccountName
+        - resourceGroupName
+        - location
+      properties:
+        storageAccountName:
+          title: Storage Account Name
+          type: string
+          description: Lowercase letters and numbers only, 3-24 characters
+          minLength: 3
+          maxLength: 24
+          pattern: '^[a-z0-9]+$'
+          ui:autofocus: true
+
+        resourceGroupName:
+          title: Resource Group Name
+          type: string
+          description: Existing Azure Resource Group to deploy into
+
+        location:
+          title: Azure Region
+          type: string
+          default: eastus
+          enum:
+            - eastus
+            - westus
+            - westeurope
+            - uksouth
+          enumNames:
+            - East US
+            - West US
+            - West Europe
+            - UK South
+
+        sku:
+          title: Storage SKU
+          type: string
+          default: Standard_LRS
+          enum:
+            - Standard_LRS
+            - Standard_GRS
+            - Premium_LRS
+          enumNames:
+            - Standard Locally Redundant
+            - Standard Geo Redundant
+            - Premium Locally Redundant
+
+  steps:
+    - id: generateXr
+      name: Generate Crossplane XR Manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          storageAccountName: ${{ parameters.storageAccountName }}
+          resourceGroupName: ${{ parameters.resourceGroupName }}
+          location: ${{ parameters.location }}
+          sku: ${{ parameters.sku }}
+
+    - id: publish
+      name: Raise PR to Platform Repo
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=platform-infra&owner=rbharadwaj16
+        title: "feat: provision storage account ${{ parameters.storageAccountName }}"
+        branchName: "storage-${{ parameters.storageAccountName }}"
+        description: |
+          ## New Azure Storage Account Request
+
+          | Field | Value |
+          |-------|-------|
+          | Name | ${{ parameters.storageAccountName }} |
+          | Resource Group | ${{ parameters.resourceGroupName }} |
+          | Location | ${{ parameters.location }} |
+          | SKU | ${{ parameters.sku }} |
+        targetPath: platform-core/crossplane/xrs/dev/${{ parameters.storageAccountName }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps.publish.output.remoteUrl }}
+        icon: github

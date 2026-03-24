@@ -46,6 +46,13 @@ auth:
     guest:
       dangerouslyAllowOutsideDevelopment: true
 
+kubernetes:
+  serviceLocatorMethod:
+    type: multiTenant
+  clusterLocatorMethods:
+    - type: config
+      clusters: []
+
 catalog:
   # Overrides the default list locations from app-config.yaml as these contain example data.
   # See https://backstage.io/docs/features/software-catalog/#adding-components-to-the-catalog for more details
@@ -64,7 +71,13 @@ catalog:
 
     #Azure SA template
     - type: file
-      target: ./examples/template/azure/storage-account/xr-sa-template.yaml
+      target: ./examples/template/azure/storage-account/storage-account-standard-template.yaml
+      rules:
+        - allow: [Template]
+
+    # Azure SA AI-assisted template
+    - type: file
+      target: ./examples/template/azure/storage-account/storage-account-ai-template.yaml
       rules:
         - allow: [Template]
 
