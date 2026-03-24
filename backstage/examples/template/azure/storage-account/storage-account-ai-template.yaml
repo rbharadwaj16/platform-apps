@@ -1,13 +1,14 @@
 apiVersion: scaffolder.backstage.io/v1beta3
 kind: Template
 metadata:
-  name: azure-storage-account
-  title: Azure Storage Account
-  description: Provision an Azure Storage Account via Crossplane
+  name: azure-storage-account-ai
+  title: Azure Storage Account AI Assisted
+  description: Provision an Azure Storage Account via Crossplane using natural language
   tags:
     - azure
     - storage
     - crossplane
+    - ai
 spec:
   owner: platform-team
   type: infrastructure
