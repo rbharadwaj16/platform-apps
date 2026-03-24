@@ -46,7 +46,9 @@ export const scaffolderTranslatorModule = createBackendModule({
               }),
             },
             async handler(ctx) {
-              const translatorUrl = 'http://localhost:8000/translate';
+              const translatorUrl =
+                process.env.TRANSLATOR_SERVICE_URL ??
+                'http://localhost:8000/translate';
 
               const response = await fetch(translatorUrl, {
                 method: 'POST',
