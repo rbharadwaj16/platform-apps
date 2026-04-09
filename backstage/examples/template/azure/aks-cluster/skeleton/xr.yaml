@@ -1,0 +1,18 @@
+apiVersion: compute.aceplatform.org/v1alpha1
+kind: XAKSCluster
+metadata:
+  name: ${{ values.clusterName }}
+  namespace: default
+  annotations:
+    argocd.argoproj.io/sync-options: SkipDryRunOnMissingResource=true
+spec:
+  parameters:
+    clusterName: ${{ values.clusterName }}
+    resourceGroupName: ${{ values.resourceGroupName }}
+    location: ${{ values.location }}
+    localAccountDisabled: ${{ values.localAccountDisabled }}
+    defaultNodePool:
+      name: system
+      vmSize: ${{ values.defaultNodePoolVmSize }}
+      nodeCount: ${{ values.defaultNodePoolNodeCount }}
+      enableAutoScaling: false

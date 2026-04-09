@@ -6,8 +6,8 @@ from openai import OpenAI
 
 app = FastAPI()
 
-ALLOWED_REGIONS = ["westeurope", "northeurope", "uksouth", "eastus"]
-ALLOWED_RESOURCE_TYPES = ["storage_account"]
+ALLOWED_REGIONS = ["eastus", "westus", "westeurope", "uksouth"]
+ALLOWED_RESOURCE_TYPES = ["storage_account", "aks_cluster"]
 
 AZURE_OPENAI_API_KEY = os.getenv("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT")
@@ -41,12 +41,16 @@ Return JSON only.
 
 Extract the user's request into this exact JSON structure:
 {
-  "resource_type": "storage_account",
+  "resource_type": "storage_account or aks_cluster",
   "parameters": {
     "storageAccountName": "string or null",
+    "clusterName": "string or null",
     "resourceGroupName": "string or null",
     "location": "string or null",
-    "sku": "string or null"
+    "sku": "string or null",
+    "defaultNodePoolVmSize": "string or null",
+    "defaultNodePoolNodeCount": "number or null",
+    "localAccountDisabled": "boolean or null"
   }
 }
 
@@ -55,7 +59,9 @@ Rules:
 - Do not return markdown
 - Do not return explanation text
 - If a value is missing, use null
-- If the request is for a storage account, set resource_type to "storage_account"
+- Set resource_type to "storage_account" or "aks_cluster"
+- Use "storage_account" when the request is about an Azure Storage Account
+- Use "aks_cluster" when the request is about Azure Kubernetes Service / AKS
 - Map common phrasing where possible, but do not invent values
 """
 
@@ -95,7 +101,13 @@ def validate_extracted_data(extracted_data):
 
     parameters = extracted_data["parameters"]
 
-    required_fields = ["storageAccountName", "resourceGroupName", "location"]
+    resource_type = extracted_data["resource_type"]
+    if resource_type == "storage_account":
+        required_fields = ["storageAccountName", "resourceGroupName", "location"]
+    elif resource_type == "aks_cluster":
+        required_fields = ["clusterName", "resourceGroupName", "location"]
+    else:
+        required_fields = []
 
     for field_name in required_fields:
         if field_name not in parameters or not parameters[field_name]:
@@ -108,6 +120,18 @@ def validate_extracted_data(extracted_data):
 
     if parameters["location"] not in ALLOWED_REGIONS:
         errors.append("Unsupported region")
+
+    if resource_type == "aks_cluster":
+        node_count = parameters.get("defaultNodePoolNodeCount")
+        if node_count is not None:
+            try:
+                node_count = int(node_count)
+            except (TypeError, ValueError):
+                errors.append("defaultNodePoolNodeCount must be a number")
+            else:
+                if node_count < 1:
+                    errors.append("defaultNodePoolNodeCount must be >= 1")
+                parameters["defaultNodePoolNodeCount"] = node_count
 
     return errors
 
@@ -130,22 +154,54 @@ def normalize_sku(sku_value):
     return sku_value
 
 
+def normalize_bool(bool_value, default_value):
+    if bool_value is None:
+        return default_value
+
+    if isinstance(bool_value, bool):
+        return bool_value
+
+    if isinstance(bool_value, str):
+        value = bool_value.strip().lower()
+        if value in {"true", "yes", "1"}:
+            return True
+        if value in {"false", "no", "0"}:
+            return False
+
+    return default_value
+
+
 def build_translation_response(extracted_data):
     parameters = extracted_data["parameters"]
+    resource_type = extracted_data["resource_type"]
 
     missing_fields = []
 
-    required_fields = ["storageAccountName", "resourceGroupName", "location"]
+    if resource_type == "storage_account":
+        required_fields = ["storageAccountName", "resourceGroupName", "location"]
+    else:
+        required_fields = ["clusterName", "resourceGroupName", "location"]
 
     for field_name in required_fields:
         if field_name not in parameters or not parameters[field_name]:
             missing_fields.append(field_name)
 
     parameters["location"] = parameters["location"].lower().replace(" ", "")
-    parameters["sku"] = normalize_sku(parameters.get("sku"))
+
+    if resource_type == "storage_account":
+        parameters["sku"] = normalize_sku(parameters.get("sku"))
+    else:
+        if not parameters.get("defaultNodePoolVmSize"):
+            parameters["defaultNodePoolVmSize"] = "Standard_DC2as_v5"
+        if not parameters.get("defaultNodePoolNodeCount"):
+            parameters["defaultNodePoolNodeCount"] = 1
+        parameters["localAccountDisabled"] = normalize_bool(
+            parameters.get("localAccountDisabled"),
+            False
+        )
 
     return {
-        "resource_type": extracted_data["resource_type"],
+        "resource_type": resource_type,
         "parameters": parameters,
         "missing_fields": missing_fields,
         "needs_clarification": len(missing_fields) > 0

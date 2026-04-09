@@ -1,7 +1,6 @@
 import { createBackendModule } from '@backstage/backend-plugin-api';
 import { scaffolderActionsExtensionPoint } from '@backstage/plugin-scaffolder-node';
 import { createTemplateAction } from '@backstage/plugin-scaffolder-node';
-import { z } from 'zod';
 
 type TranslatorResponse = {
   resource_type: string;
@@ -10,6 +9,10 @@ type TranslatorResponse = {
     resourceGroupName?: string;
     location?: string;
     sku?: string;
+    clusterName?: string;
+    defaultNodePoolVmSize?: string;
+    defaultNodePoolNodeCount?: number;
+    localAccountDisabled?: boolean;
   };
   missing_fields: string[];
   needs_clarification: boolean;
@@ -28,22 +31,28 @@ export const scaffolderTranslatorModule = createBackendModule({
           createTemplateAction({
             id: 'ace:translator:run',
             description:
-              'Call translator service and return extracted storage account parameters',
+              'Call translator service and return extracted infrastructure parameters',
             schema: {
-              input: z.object({
-                requestText: z.string(),
-              }),
-              output: z.object({
-                resource_type: z.string(),
-                parameters: z.object({
-                  storageAccountName: z.string().optional(),
-                  resourceGroupName: z.string().optional(),
-                  location: z.string().optional(),
-                  sku: z.string().optional(),
-                }),
-                missing_fields: z.array(z.string()),
-                needs_clarification: z.boolean(),
-              }),
+              input: {
+                requestText: z => z.string(),
+                expectedResourceType: z => z.string().optional(),
+              },
+              output: {
+                resource_type: z => z.string(),
+                parameters: z =>
+                  z.object({
+                    storageAccountName: z.string().optional(),
+                    resourceGroupName: z.string().optional(),
+                    location: z.string().optional(),
+                    sku: z.string().optional(),
+                    clusterName: z.string().optional(),
+                    defaultNodePoolVmSize: z.string().optional(),
+                    defaultNodePoolNodeCount: z.number().optional(),
+                    localAccountDisabled: z.boolean().optional(),
+                  }),
+                missing_fields: z => z.array(z.string()),
+                needs_clarification: z => z.boolean(),
+              },
             },
             async handler(ctx) {
               const translatorUrl =
@@ -85,6 +94,15 @@ export const scaffolderTranslatorModule = createBackendModule({
                   `Translator needs clarification. Missing fields: ${data.translation.missing_fields.join(
                     ', ',
                   )}`,
+                );
+              }
+
+              if (
+                ctx.input.expectedResourceType &&
+                data.translation.resource_type !== ctx.input.expectedResourceType
+              ) {
+                throw new Error(
+                  `Translator returned resource type '${data.translation.resource_type}', expected '${ctx.input.expectedResourceType}'`,
                 );
               }
 

@@ -1,0 +1,73 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: azure-aks-cluster-ai
+  title: Azure AKS Cluster AI Assisted
+  description: Provision an Azure AKS Cluster via Crossplane using natural language
+  tags:
+    - azure
+    - aks
+    - kubernetes
+    - crossplane
+    - ai
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: AKS Cluster Request
+      required:
+        - requestText
+      properties:
+        requestText:
+          title: Describe what you want
+          type: string
+          description: Example - create an aks cluster named akstestcluster01 in eastus in resource group myapp-rg with vm size standard_dc2as_v5 and 1 node
+          ui:autofocus: true
+
+  steps:
+    - id: translatorRun
+      name: Translate natural language request
+      action: ace:translator:run
+      input:
+        requestText: ${{ parameters.requestText }}
+        expectedResourceType: aks_cluster
+
+    - id: generateXr
+      name: Generate Crossplane XR Manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          clusterName: ${{ steps.translatorRun.output.parameters.clusterName }}
+          resourceGroupName: ${{ steps.translatorRun.output.parameters.resourceGroupName }}
+          location: ${{ steps.translatorRun.output.parameters.location }}
+          defaultNodePoolVmSize: ${{ steps.translatorRun.output.parameters.defaultNodePoolVmSize }}
+          defaultNodePoolNodeCount: ${{ steps.translatorRun.output.parameters.defaultNodePoolNodeCount }}
+          localAccountDisabled: ${{ steps.translatorRun.output.parameters.localAccountDisabled }}
+
+    - id: publish
+      name: Raise PR to Platform Repo
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=platform-infra&owner=rbharadwaj16
+        title: "feat: provision aks cluster ${{ steps.translatorRun.output.parameters.clusterName }}"
+        branchName: "aks-${{ steps.translatorRun.output.parameters.clusterName }}"
+        description: |
+          ## New Azure AKS Cluster Request
+
+          | Field | Value |
+          |-------|-------|
+          | Name | ${{ steps.translatorRun.output.parameters.clusterName }} |
+          | Resource Group | ${{ steps.translatorRun.output.parameters.resourceGroupName }} |
+          | Location | ${{ steps.translatorRun.output.parameters.location }} |
+          | Node Pool VM Size | ${{ steps.translatorRun.output.parameters.defaultNodePoolVmSize }} |
+          | Node Pool Node Count | ${{ steps.translatorRun.output.parameters.defaultNodePoolNodeCount }} |
+          | Local Account Disabled | ${{ steps.translatorRun.output.parameters.localAccountDisabled }} |
+        targetPath: platform-core/crossplane/xrs/dev/${{ steps.translatorRun.output.parameters.clusterName }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps.publish.output.remoteUrl }}
+        icon: github
