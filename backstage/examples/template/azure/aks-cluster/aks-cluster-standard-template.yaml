@@ -1,0 +1,111 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: azure-aks-cluster-standard
+  title: Azure AKS Cluster Standard
+  description: Provision an Azure AKS Cluster via Crossplane using a standard form
+  tags:
+    - azure
+    - aks
+    - kubernetes
+    - crossplane
+    - standard
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: AKS Cluster Details
+      required:
+        - clusterName
+        - resourceGroupName
+        - location
+      properties:
+        clusterName:
+          title: AKS Cluster Name
+          type: string
+          description: Lowercase letters, numbers, and hyphens only (3-63 characters)
+          minLength: 3
+          maxLength: 63
+          pattern: '^[a-z0-9-]+$'
+          ui:autofocus: true
+
+        resourceGroupName:
+          title: Resource Group Name
+          type: string
+          description: Existing Azure Resource Group to deploy into
+
+        location:
+          title: Azure Region
+          type: string
+          default: eastus
+          enum:
+            - eastus
+            - westus
+            - westeurope
+            - uksouth
+          enumNames:
+            - East US
+            - West US
+            - West Europe
+            - UK South
+
+        defaultNodePoolVmSize:
+          title: Default Node Pool VM Size
+          type: string
+          default: Standard_DC2as_v5
+          description: VM size for the default system node pool
+
+        defaultNodePoolNodeCount:
+          title: Default Node Pool Node Count
+          type: integer
+          default: 1
+          minimum: 1
+          maximum: 100
+          description: Number of nodes in the default system node pool
+
+        localAccountDisabled:
+          title: Disable Local Accounts
+          type: boolean
+          default: false
+          description: Set to true only when Azure AD integration requirements are met
+
+  steps:
+    - id: generateXr
+      name: Generate Crossplane XR Manifest
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          clusterName: ${{ parameters.clusterName }}
+          resourceGroupName: ${{ parameters.resourceGroupName }}
+          location: ${{ parameters.location }}
+          defaultNodePoolVmSize: ${{ parameters.defaultNodePoolVmSize }}
+          defaultNodePoolNodeCount: ${{ parameters.defaultNodePoolNodeCount }}
+          localAccountDisabled: ${{ parameters.localAccountDisabled }}
+
+    - id: publish
+      name: Raise PR to Platform Repo
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=platform-infra&owner=rbharadwaj16
+        title: "feat: provision aks cluster ${{ parameters.clusterName }}"
+        branchName: "aks-${{ parameters.clusterName }}"
+        description: |
+          ## New Azure AKS Cluster Request
+
+          | Field | Value |
+          |-------|-------|
+          | Name | ${{ parameters.clusterName }} |
+          | Resource Group | ${{ parameters.resourceGroupName }} |
+          | Location | ${{ parameters.location }} |
+          | Node Pool VM Size | ${{ parameters.defaultNodePoolVmSize }} |
+          | Node Pool Node Count | ${{ parameters.defaultNodePoolNodeCount }} |
+          | Local Account Disabled | ${{ parameters.localAccountDisabled }} |
+        targetPath: platform-core/crossplane/xrs/dev/${{ parameters.clusterName }}
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps.publish.output.remoteUrl }}
+        icon: github

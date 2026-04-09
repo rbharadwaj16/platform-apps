@@ -81,6 +81,18 @@ catalog:
       rules:
         - allow: [Template]
 
+    # Azure AKS standard template
+    - type: file
+      target: ./examples/template/azure/aks-cluster/aks-cluster-standard-template.yaml
+      rules:
+        - allow: [Template]
+
+    # Azure AKS AI-assisted template
+    - type: file
+      target: ./examples/template/azure/aks-cluster/aks-cluster-ai-template.yaml
+      rules:
+        - allow: [Template]
+
     # Local example organizational data
     - type: file
       target: ./examples/org.yaml

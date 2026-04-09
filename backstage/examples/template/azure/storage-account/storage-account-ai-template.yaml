@@ -30,6 +30,7 @@ spec:
       action: ace:translator:run
       input:
         requestText: ${{ parameters.requestText }}
+        expectedResourceType: storage_account
 
     - id: generateXr
       name: Generate Crossplane XR Manifest

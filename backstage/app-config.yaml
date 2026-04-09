@@ -59,6 +59,16 @@ catalog:
         - allow: [Template]
 
     - type: file
+      target: ../../examples/template/azure/aks-cluster/aks-cluster-standard-template.yaml
+      rules:
+        - allow: [Template]
+
+    - type: file
+      target: ../../examples/template/azure/aks-cluster/aks-cluster-ai-template.yaml
+      rules:
+        - allow: [Template]
+
+    - type: file
       target: ../../examples/org.yaml
       rules:
         - allow: [User, Group]
